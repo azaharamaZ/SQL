@@ -1,0 +1,262 @@
+--Para generar una salida, debe realizar 
+SET SERVEROUTPUT ON
+
+DECLARE
+    v_nombre VARCHAR2(10) := 'Emilio';
+BEGIN
+    dbms_output.put_line('Mi nombre es: : ' || v_nombre);
+END;
+
+/
+
+DECLARE
+    v_fecha  DATE;
+    v_deptno NUMBER(2) NOT NULL := 10;
+    v_lugar  VARCHAR2(13) DEFAULT 'Sicilia';
+    c_altura CONSTANT NUMBER := 1.72;
+BEGIN
+    v_lugar := 'Menorca';
+    v_fecha := '14/12/1984';
+    dbms_output.put_line('Naci el: ' || v_fecha);
+    dbms_output.put_line('En la isla mas bonita del mundo que es: ' || v_lugar);
+    dbms_output.put_line('Mido: ' || c_altura);
+END;
+/
+
+/*Se utilicen variables y se llenan con valores de tablas.*/
+DECLARE
+    v_id_alumno alumnos.id_alumno%TYPE;
+    v_edad      alumnos.edad%TYPE;
+    v_nombre    alumnos.nombre_completo%TYPE;
+BEGIN
+    v_id_alumno := 2;
+    SELECT
+        nombre_completo,
+        edad
+    INTO
+        v_nombre,
+        v_edad
+    FROM
+        alumnos
+    WHERE
+        id_alumno = 2;
+
+    dbms_output.put_line('La edad de '
+                         || v_nombre
+                         || ' es de '
+                         || v_edad
+                         || ' años');
+
+END;
+/
+
+-- Crear una funcón que dada una fecha nos devuelva el nombre del dia
+
+
+/*Declaramos la variable booleana bandera y la inicializamos con FALSE, posteriormente le asignamos el valor TRUE.*/
+DECLARE
+    v_abierto BOOLEAN;
+    v_horario VARCHAR(50);
+BEGIN
+IF 
+-- Si es abierto 
+    IF v_abierto = true THEN
+        v_horario := 'De 8:00 a 19:00';
+    ELSE
+        v_horario := 'Consultar dias abiertos';
+    END IF;
+
+    dbms_output.put_line(v_horario);
+END;
+/
+
+/*Este ejemplo muestra el uso de ELSIF; el cual nos ofrece la posibilidad de dar una validación mas especifica.*/
+DECLARE
+    v_edad NUMBER;
+BEGIN
+    v_edad := &edad;
+    IF v_edad BETWEEN 1 AND 17 THEN
+        dbms_output.put_line('Edad: '
+                             || v_edad
+                             || ' Años'
+                             || chr(10)
+                             || 'El individuo es Menor de edad!!!');
+
+    ELSIF v_edad BETWEEN 18 AND 90 THEN
+        dbms_output.put_line('Edad: '
+                             || v_edad
+                             || ' Años'
+                             || chr(10)
+                             || 'El individuo es Mayor de edad!');
+    ELSIF v_edad BETWEEN 91 AND 200 THEN
+        dbms_output.put_line('Edad: '
+                             || v_edad
+                             || ' Años'
+                             || chr(10)
+                             || 'El individuo es Mayor de edad!'
+                             || chr(10)
+                             || 'No dejes que se vaya sin que te diga la formula');
+    ELSE
+        dbms_output.put_line(v_edad || ' Es una Edad Invalida!!!');
+    END IF;
+
+END;
+/
+
+-- Funcion que devuelve el dia de la semana
+CREATE OR REPLACE FUNCTION f_dia_semana (
+    fecha IN DATE
+) RETURN VARCHAR 
+AS
+v_dia_sem VARCHAR(20);
+BEGIN
+    SELECT
+        to_char(fecha, 'DAY', 'NLS_DATE_LANGUAGE = SPANISH')
+    INTO v_dia_sem
+    FROM
+        dual;
+
+    RETURN v_dia_sem;
+END f_dia_semana;
+/
+
+/*Este ejemplo evalúa el Día de la semana y de acuerdo a el muestra un estado de animo.*/
+DECLARE
+    v_dia VARCHAR2(20);
+    v_mas_dias NUMBER := 0;
+    v_fecha DATE;
+BEGIN
+
+-- numero de dias a sumar
+v_mas_dias := &suma_dias;
+-- Sumar los dias a la fecha de hoy
+v_fecha := sysdate + v_mas_dias;
+
+v_dia := f_dia_semana(v_fecha);
+
+    CASE v_dia
+        WHEN 'LUNES' THEN
+            dbms_output.put_line( v_fecha || ' Lunes.  Iniciando la semana laboral, que flojera.');
+        WHEN 'MARTES' THEN
+            dbms_output.put_line( v_fecha || ' Martes. Fin de semana lejos, sigue la flojera.');
+        WHEN 'MIERCOLES' THEN
+            dbms_output.put_line( v_fecha || ' Miercoles. Ombligo de la semana, no se reportan mejoras de animo.');
+        WHEN 'JUEVES' THEN
+            dbms_output.put_line( v_fecha || ' Jueves. Llegó algo de esperanza al cuerpo, el futuro se pinta mejor.');
+        WHEN 'VIERNES' THEN
+            dbms_output.put_line( v_fecha || ' Viernes. ¡Tu cuerpo sabe que es Viernes y lo sabes!');
+        ELSE
+            dbms_output.put_line( v_fecha || ' Finde. A descansar.');
+    END CASE;
+
+END;
+
+/
+
+/*Ejemplo de loop */
+DECLARE
+    v_max_id alumnos.id_alumno%TYPE;
+    v_id_alu   alumnos.id_alumno%TYPE;
+    v_nombre   alumnos.nombre_completo%TYPE;
+    v_fechana   alumnos.fecha_nacimiento%TYPE := '01/01/2002';
+    v_count NUMBER := 1;
+
+BEGIN
+    SELECT
+        MAX(id_alumno)
+    INTO v_max_id
+    FROM
+        alumnos;
+
+-- Bucle para añadir datos
+    LOOP
+        v_id_alu := v_max_id + v_count;
+        v_nombre := CONCAT('Nombre', v_id_alu);
+        v_fechana := '01/01/2002';
+        INSERT INTO alumnos ( id_alumno, nombre_completo, fecha_nacimiento) VALUES ( v_id_alu, v_nombre, v_fechana );
+        dbms_output.put_line( 'Nuevo ID de alumno insertado con número: ' || v_id_alu);
+        v_count := v_count + 1;
+        EXIT WHEN v_count > 3;
+        
+    END LOOP;
+
+END;
+/
+-- Vuelta a tras lo que se ha insertado
+ROLLBACK;
+
+/
+
+DECLARE
+    salario_anual NUMBER;
+    incentivo     NUMBER;
+BEGIN
+    salario_anual := &salario_mensual * 12;
+    IF salario_anual >= 1000 THEN
+        incentivo := 300;
+    ELSIF salario_anual <= 9999 THEN
+        incentivo := 200;
+    ELSE
+        incentivo := 100;
+    END IF;
+
+    dbms_output.put_line('El valor de la Variable es: : ' || incentivo);
+END;
+
+/
+
+-- Crear tabla empleados
+CREATE TABLE empleados (
+  id NUMBER(10),
+  nombre VARCHAR2(50),
+  edad NUMBER(3)
+);
+
+-- Insertar registros de ejemplo
+INSERT INTO empleados VALUES (1, 'Juan', 25);
+INSERT INTO empleados VALUES (2, 'Maria', 32);
+INSERT INTO empleados VALUES (3, 'Carlos', 45);
+INSERT INTO empleados VALUES (4, 'Sofia', 19);
+INSERT INTO empleados VALUES (5, 'Pedro', 50);
+
+
+/*En este bloque anónimo, se define una variable llamada "v_salario_base" que contiene el salario base de un empleado, y otras tres variables que son solicitadas al usuario mediante la utilización de una variable bind "&". 
+Luego, se utiliza una estructura de control IF-ELSE para calcular el salario total de un empleado dependiendo de la cantidad de horas trabajadas y la tarifa por hora.
+Posteriormente, se utiliza un bucle FOR para iterar sobre los valores de una tabla llamada "empleados". 
+Dentro del bucle FOR, se utilizan estructuras de control condicionales IF-ELSEIF-ELSE para imprimir información del registro y una descripción según la edad del empleado.
+Este bloque anónimo puede ser ejecutado en una herramienta de desarrollo de PL/SQL y mostrará en la consola información acerca del salario total y de cada registro en la tabla "empleados".
+*/
+
+DECLARE
+  v_salario_base NUMBER := 1000;
+  v_salario_total NUMBER;
+  v_cantidad_horas_trabajadas NUMBER := &horas_trabajadas;
+  v_tarifa_hora NUMBER := &tarifa_hora;
+BEGIN
+  -- Calcular salario total
+  IF v_cantidad_horas_trabajadas <= 40 THEN
+    v_salario_total := v_salario_base + (v_cantidad_horas_trabajadas * v_tarifa_hora);
+  ELSE
+    v_salario_total := v_salario_base + (40 * v_tarifa_hora) + ((v_cantidad_horas_trabajadas - 40) * v_tarifa_hora * 1.5);
+  END IF;
+  
+  -- Imprimir salario total
+  DBMS_OUTPUT.PUT_LINE('El salario total es: ' || v_salario_total);
+  
+  -- Iterar sobre los valores de una tabla
+  FOR registro IN (SELECT id, nombre, edad FROM empleados) LOOP
+    -- Imprimir información del registro
+    DBMS_OUTPUT.PUT_LINE('ID: ' || registro.id || ', Nombre: ' || registro.nombre || ', Edad: ' || registro.edad);
+    
+    -- Condición con múltiples ramas
+    IF registro.edad < 18 THEN
+      DBMS_OUTPUT.PUT_LINE('Este empleado no cumple con la edad mínima requerida.');
+    ELSIF registro.edad BETWEEN 18 AND 30 THEN
+      DBMS_OUTPUT.PUT_LINE('Este empleado se encuentra en la etapa inicial de su carrera.');
+    ELSIF registro.edad BETWEEN 31 AND 50 THEN
+      DBMS_OUTPUT.PUT_LINE('Este empleado se encuentra en su etapa media de su carrera.');
+    ELSE
+      DBMS_OUTPUT.PUT_LINE('Este empleado se encuentra en la etapa avanzada de su carrera.');
+    END IF;
+  END LOOP;
+END;
