@@ -1,0 +1,278 @@
+
+-- CONCETAR CON EL USUARIO ONLINER o entrar en el usuario para crear las tablas
+conn onliner / o1234;
+-- CREAMOS 3 Tablas
+
+-- Crear tabla alumno.
+CREATE TABLE alumnos (
+    id_alumno        INT PRIMARY KEY,
+    nombre_completo  VARCHAR(100) NOT NULL,
+    fecha_nacimiento DATE NOT NULL
+);
+
+-- Crear tabla asignaturas
+CREATE TABLE asignaturas (
+    codigo_asig VARCHAR(10) PRIMARY KEY,
+    nombre      VARCHAR(25) NOT NULL
+);
+
+-- Crear tabla notas
+CREATE TABLE notas (
+    id_alumno   INT,
+    codigo_asig VARCHAR(10),
+    nota        FLOAT NOT NULL,
+    CONSTRAINT id_alumno_fk FOREIGN KEY ( id_alumno )
+        REFERENCES alumnos ( id_alumno ),
+    CONSTRAINT codigo_asig_fk FOREIGN KEY ( codigo_asig )
+        REFERENCES asignaturas ( codigo_asig ),
+    PRIMARY KEY ( id_alumno,
+                  codigo_asig )
+);
+
+-- INSERTAR DATOS
+INSERT INTO alumnos VALUES (1,'Juan Fernando Pérez del Corral','10/02/2005');
+INSERT INTO alumnos VALUES (2,'Valentina Laverde de la Rosa','13/10/2005');
+INSERT INTO alumnos VALUES (3,'Óscar de la Renta','15/08/2006');
+INSERT INTO alumnos VALUES (4,'Sara Teresa Sánchez del Pinar','02/09/2005');
+INSERT INTO alumnos VALUES (5,'Efraín de las Casas Mejía','19/08/2005');
+INSERT INTO alumnos VALUES (6,'Julieta Ponce de León','05/02/2006');
+INSERT INTO alumnos VALUES (7,'Martín Elías de los Ríos Acosta','02/04/2006');
+INSERT INTO alumnos VALUES (8,'Gabriel del Cristo','24/06/2006');
+INSERT INTO alumnos VALUES (9,'Juana de la Santísima Cruz','29/10/2007');
+INSERT INTO alumnos VALUES (10,'Jairo de Jesús','30/05/2005');
+
+
+INSERT INTO asignaturas VALUES ('DAX_M01','Sistemas Informáticos');
+INSERT INTO asignaturas VALUES ('DAX_M02A','Bases de Datos A');
+INSERT INTO asignaturas VALUES ('DAX_M02B','Bases de Datos B');
+INSERT INTO asignaturas VALUES ('DAX_M03A','Programación A');
+INSERT INTO asignaturas VALUES ('DAX_M03B','Programación B');
+INSERT INTO asignaturas VALUES ('DAX_M04','Lenguajes de Marcas');
+INSERT INTO asignaturas VALUES ('DAX_M05','Entornos de desarrollo');
+
+ 
+INSERT INTO notas VALUES ('1','DAX_M01','6');
+INSERT INTO notas VALUES ('2','DAX_M01','3');
+INSERT INTO notas VALUES ('7','DAX_M01','3');
+INSERT INTO notas VALUES ('8','DAX_M01','10');
+INSERT INTO notas VALUES ('9','DAX_M01','7');
+INSERT INTO notas VALUES ('10','DAX_M01','6');
+INSERT INTO notas VALUES ('1','DAX_M02A','6');
+INSERT INTO notas VALUES ('4','DAX_M02A','9');
+INSERT INTO notas VALUES ('9','DAX_M02A','5');
+INSERT INTO notas VALUES ('10','DAX_M02A','6');
+INSERT INTO notas VALUES ('1','DAX_M03A','4');
+INSERT INTO notas VALUES ('2','DAX_M03A','7');
+INSERT INTO notas VALUES ('3','DAX_M03A','10');
+INSERT INTO notas VALUES ('7','DAX_M03A','9');
+INSERT INTO notas VALUES ('8','DAX_M03A','3');
+INSERT INTO notas VALUES ('9','DAX_M03A','6');
+INSERT INTO notas VALUES ('10','DAX_M03A','4');
+INSERT INTO notas VALUES ('4','DAX_M02B','3');
+INSERT INTO notas VALUES ('5','DAX_M02B','3');
+INSERT INTO notas VALUES ('6','DAX_M03B','10');
+INSERT INTO notas VALUES ('7','DAX_M03B','8');
+INSERT INTO notas VALUES ('8','DAX_M03B','9');
+INSERT INTO notas VALUES ('9','DAX_M03B','4');
+INSERT INTO notas VALUES ('10','DAX_M03B','4');
+INSERT INTO notas VALUES ('1','DAX_M04','5');
+INSERT INTO notas VALUES ('2','DAX_M04','8');
+INSERT INTO notas VALUES ('3','DAX_M04','9');
+
+-- Añadir un campo edad a la tabla alumnos
+ALTER TABLE alumnos ADD edad INT;
+
+-- Actualizar la edad de todos los alumnos
+UPDATE alumnos SET edad = FLOOR(MONTHS_BETWEEN(SYSDATE,fecha_nacimiento) / 12);
+
+-- Añadir un campo edad a la tabla alumnos
+ALTER TABLE asignaturas ADD creditos INT;
+
+-- Actualizar creditos en funcion de lo largo del nombre de la asignaura
+UPDATE asignaturas SET creditos = length(nombre);
+
+
+-- Crear una vista para consultar los datos de los alumnos asignaturas y notas
+CREATE OR REPLACE VIEW NOTAS_ALUMNOS AS
+SELECT 
+    alumnos.nombre_completo,
+    asignaturas.nombre,
+    notas.nota
+FROM
+    notas
+        INNER JOIN
+    alumnos ON notas.id_alumno = alumnos.id_alumno
+        INNER JOIN
+    asignaturas ON notas.codigo_asig = asignaturas.codigo_asig
+ORDER BY asignaturas.codigo_asig DESC;
+
+
+-- CONECTAR CON EL USUARIO SYSTEM QUE ADMINISTRARA LOS USUARIOS A CREAR
+
+-- Alter session para la creación de usuarios
+ALTER SESSION SET "_ORACLE_SCRIPT" = true;
+
+
+-- Creamos un nuevo TABLESPACE para EJERCICIOS, sino se comenta por defecto usa el de SYSTEM
+-- TABLESPACE es una ubicación de almacenamiento donde pueden ser guardados los datos correspondientes a los objetos de una base de datos.
+
+-- Para eliminar un tablespace
+DROP TABLESPACE m02b
+   INCLUDING CONTENTS AND DATAFILES
+    CASCADE CONSTRAINTS;
+   
+-- Para crear un tablespace
+CREATE TABLESPACE m02b
+DATAFILE 'C:\app\oracle\product\21c\oradata\XE\m02b.dbf' SIZE 200M;
+
+-- Crear un perfil para los alumnos que tiene 3 intentos de conexion sino se bloquea la cuenta
+DROP PROFILE perfil_alumnos;
+CREATE PROFILE perfil_alumnos
+    LIMIT FAILED_LOGIN_ATTEMPTS 3;
+    
+-- Crear usuario Alumno1 y asignarle privilegio para iniciar sesion, no confundir con el role de CONNECT
+
+-- Se crea un usuario llamado Alumno1 establece la contraseña del usuario alumno como "password"
+-- Se asigna el tablespace por defecto y se establece una cuota máxima de 10 MB para este tablespace.
+CREATE USER alumno1 IDENTIFIED BY a1
+DEFAULT TABLESPACE m02b
+QUOTA 10M ON m02b;
+
+ALTER USER alumno1 PROFILE perfil_alumnos;
+
+-- Le damos un privilegio de crear session es decir que se pueda conectar
+GRANT CREATE SESSION TO alumno1;
+
+-- Probamos la conexión y revisamos el usuario en el menu
+CONN alumno1 / a1;
+SHOW USER;
+
+-- Crear un usuario Alumno2 y asignarle el role de conexión CONNECT
+CREATE USER alumno2 IDENTIFIED BY a2
+DEFAULT TABLESPACE m02b
+QUOTA 10M ON m02b;
+
+ALTER USER alumno2 PROFILE perfil_alumnos;
+
+-- Le damos un privilegio de crear session es decir que se pueda conectar
+--CONNECT: incluye únicamente el privilegio CREATE SESSION, que permite conectar a la BD. 
+GRANT CONNECT TO alumno2;
+
+-- Probamos la conexión y revisamos que si intentemos mas de 3 veces se bloquea el usaurio
+CONN alumno2 / a1;
+SHOW USER;
+
+ALTER USER alumno2 ACCOUNT UNLOCK;
+CONN alumno2 / a2;
+SHOW USER;
+
+-- Crear un usuario Profesor1 no le ponemos tablespace, lo coge por defecto
+DROP USER Profesor1;
+CREATE USER Profesor1 IDENTIFIED BY p1;
+
+-- Le damos un privilegio de crear session es decir que se pueda conectar
+GRANT CONNECT TO Profesor1;
+
+-- Crear un usuario Profesor2 no le ponemos tablespace, lo coge por defecto
+DROP USER Profesor2;
+CREATE USER Profesor2 IDENTIFIED BY p2;
+
+-- Le damos un privilegio de crear session es decir que se pueda conectar
+GRANT CONNECT TO Profesor2;
+
+-- Crear un usuario Profesor2 no le ponemos tablespace, lo coge por defecto
+DROP USER director;
+CREATE USER director IDENTIFIED BY d1234;
+
+-- Le damos un privilegio de crear session es decir que se pueda conectar
+GRANT CONNECT TO director;
+
+--Crear un rol que tenga privilegios para el director
+DROP ROLE rol_director;
+CREATE ROLE rol_director;
+
+GRANT INSERT, UPDATE, DELETE, SELECT ON onliner.alumnos TO rol_director;
+GRANT INSERT, UPDATE, DELETE, SELECT ON onliner.asignaturas TO rol_director;
+GRANT INSERT, UPDATE, DELETE, SELECT ON onliner.notas TO rol_director;
+GRANT INSERT, UPDATE, DELETE, SELECT ON onliner.notas_alumnos TO rol_director;
+GRANT CREATE SESSION TO rol_director;
+GRANT CREATE VIEW TO rol_director;
+
+--Asignar este rol al usuario director
+GRANT rol_director TO director_1;
+
+--Crear rol para el profesor
+DROP ROLE rol_profesor;
+CREATE ROLE rol_profesor;
+GRANT SELECT ON onliner.notas_alumnos TO rol_profesor;
+GRANT UPDATE, SELECT ON onliner.notas TO rol_profesor;
+
+GRANT CREATE SESSION TO rol_profesor;
+
+--Asignar este rol al usuario profesor
+GRANT rol_profesor TO profesor_1;
+
+--Crear rol para el alumno
+DROP ROLE rol_alumno;
+CREATE ROLE rol_alumno;
+GRANT SELECT, UPDATE ON onliner.notas_alumnos TO rol_alumno;
+GRANT CREATE SESSION TO rol_alumno;
+
+--Quiatamos el premiso de acturalizar al rol de alumno
+REVOKE UPDATE ON onliner.notas_alumnos FROM rol_alumno;
+
+--Asignar este rol al usuario alumno
+GRANT rol_alumno TO alumno_1;
+
+-- Revisar el Role del alumno
+SELECT
+    *
+FROM
+    role_tab_privs
+WHERE
+    role = 'ROL_ALUMNO';
+
+-- Comprobar entrando como Director, Profeso y Alumno
+-- Revisar que puede hacer y que no puede hacer cada ususario, probar diferentes instrucciones con cada uno
+
+-- Probar el director
+conn director / d1234;
+UPDATE onliner.asignaturas set creditos = 33 WHERE codigo_asig = 'DAX_M02B';
+SELECT * FROM onliner.asignaturas WHERE codigo_asig = 'DAX_M02B';
+
+-- Probar el profesor
+conn profesor1 / p1;
+SELECT * FROM onliner.notas;
+
+UPDATE onliner.notas set nota = 8 WHERE id_alumno = '1' AND codigo_asig = 'DAX_M01';
+SELECT * FROM onliner.notas  WHERE id_alumno = '1' AND codigo_asig = 'DAX_M01';
+
+-- Probar el alumno
+conn alumno1 / a1;
+SELECT * FROM onliner.asignaturas;
+SELECT * FROM onliner.notas;
+
+-- vemos una lista con los ususrios creados en el ultimo mes
+SELECT * FROM DBA_USERS WHERE CREATED BETWEEN '03/02/23' AND '03/03/23';
+
+SET SERVEROUTPUT ON;
+
+-- Presentación de lo que es un bloque
+DECLARE
+    v_nombre VARCHAR2(10) := 'Emilio';
+BEGIN
+    dbms_output.put_line('Mi nombre es: ' || v_nombre);
+END;
+
+/
+
+DECLARE
+    v_numero1 number;
+    v_numero2 number;
+    v_suma number;
+BEGIN
+    v_numero1 := 33;
+    v_numero2 := &Numero2; -- Introducir por pantalla
+    v_suma := v_numero1 + v_numero2;
+    dbms_output.put_line('Resultado de:  ' || v_numero1 || ' + ' || v_numero2 || ' = ' || v_suma);
+END;
