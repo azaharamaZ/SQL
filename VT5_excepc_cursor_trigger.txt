@@ -1,0 +1,210 @@
+    SET SERVEROUTPUT ON;
+
+-- EXCEPCIONES PREDEFINIDAS ORACLE --
+DECLARE
+    v_idalum alumnos.id_alumno%TYPE;
+    v_nombre alumnos.nombre_completo%TYPE;
+BEGIN
+    v_idalum := '11';
+-- Que pasa si no se encuentra el dato
+    SELECT
+        nombre_completo
+    INTO v_nombre
+    FROM
+        alumnos
+    WHERE
+        id_alumno = v_idalum;
+
+    dbms_output.put_line('Nombre Alumno: ' || v_nombre);
+EXCEPTION
+    WHEN no_data_found THEN
+        dbms_output.put_line('No hay datos para la selección del id alumno ' || v_idalum);
+END;
+/
+
+-- EXCEPCIONES NO-PREDEFINIDAS ORACLE
+
+-- Vemos que pasa si dividimos un numero entre cero
+DECLARE
+    v1 FLOAT;
+BEGIN
+    v1 := 90 / 0;
+END;
+/
+
+-- Manejamos la excepción No Predefinida
+-- Asocia un nombre de excepción con un número de error de Oracle. 
+-- Puede interceptar cualquier error ORA- y escribir un controlador específico para él en lugar de usar el OTHERS.
+DECLARE
+    dividir_cero EXCEPTION;
+    PRAGMA exception_init ( dividir_cero, -01476 ); -- Declaracion de la excepción
+    v_resultado   DECIMAL(6, 2);
+    v_numerador   INT;
+    v_denominador INT;
+BEGIN
+    v_numerador := &numerador;
+    v_denominador := &denominador;
+    v_resultado := v_numerador / v_denominador;
+    
+    dbms_output.put_line('Resultado: '
+                         || v_numerador
+                         || ' / '
+                         || v_denominador
+                         || ' = '
+                         || v_resultado);
+
+EXCEPTION
+    WHEN dividir_cero THEN
+        dbms_output.put_line('¡Error! El denominador es cero. No se puede dividir entre cero');       
+END;
+/
+
+-- EXCEPCIONES DE USUARIO
+
+
+DECLARE
+    negativo EXCEPTION;
+    v_precio NUMBER(8,2);
+    v_iva NUMBER(8,2) := 21/100;
+    v_precio_iva       NUMBER(8,2);
+BEGIN
+-- No permitimos valores negativos
+    v_precio := &numero;
+    IF v_precio < 0 THEN
+        RAISE negativo;
+    ELSE
+        v_precio_iva := v_precio + (v_precio * v_iva);
+        dbms_output.put_line('El Precio con IVA incluido es de: ' || v_precio_iva || ' €');
+    END IF;
+
+EXCEPTION
+    WHEN negativo THEN
+        dbms_output.put_line('Precio negativo NO permitidos');
+END;
+/
+
+ALTER TABLE EMPLEADOS ADD DEPARTAMENTO VARCHAR(30);
+
+TRUNCATE TABLE EMPLEADOS;
+
+INSERT INTO "ONLINER"."EMPLEADOS" (ID_EMP, NOMBRE, SALARIO, DEPARTAMENTO) VALUES ('101', 'Juan Martinez', '1539,08', 'IT');
+INSERT INTO "ONLINER"."EMPLEADOS" (ID_EMP, NOMBRE, SALARIO, DEPARTAMENTO) VALUES ('102', 'Maria Pelaz', '1977,94', 'IT');
+INSERT INTO "ONLINER"."EMPLEADOS" (ID_EMP, NOMBRE, SALARIO, DEPARTAMENTO) VALUES ('103', 'Pedro Piña', '2927,62', 'IT');
+INSERT INTO "ONLINER"."EMPLEADOS" (ID_EMP, NOMBRE, SALARIO, DEPARTAMENTO) VALUES ('104', 'Luisa CAramelo', '1188,58', 'IT');
+INSERT INTO "ONLINER"."EMPLEADOS" (ID_EMP, NOMBRE, SALARIO, DEPARTAMENTO) VALUES ('105', 'Jose Lopo', '2515,42', 'RRHH');
+INSERT INTO "ONLINER"."EMPLEADOS" (ID_EMP, NOMBRE, SALARIO, DEPARTAMENTO) VALUES ('106', 'Ana Jalen', '1194,81', 'RRHH');
+INSERT INTO "ONLINER"."EMPLEADOS" (ID_EMP, NOMBRE, SALARIO, DEPARTAMENTO) VALUES ('107', 'Carlos Antino', '2148,1', 'RRHH');
+INSERT INTO "ONLINER"."EMPLEADOS" (ID_EMP, NOMBRE, SALARIO, DEPARTAMENTO) VALUES ('108', 'Sofia Carrasco', '1702,86', 'ADMIN');
+INSERT INTO "ONLINER"."EMPLEADOS" (ID_EMP, NOMBRE, SALARIO, DEPARTAMENTO) VALUES ('109', 'Fernando Silva', '2587,19', 'ADMIN');
+INSERT INTO "ONLINER"."EMPLEADOS" (ID_EMP, NOMBRE, SALARIO, DEPARTAMENTO) VALUES ('111', 'Laura Escandell', '1625,21', 'ADMIN');
+
+
+CREATE OR REPLACE FUNCTION obtener_empleado_salario_maximo_dept (dpt IN VARCHAR)
+RETURN VARCHAR2
+IS
+  nombre_empleado VARCHAR2(50);
+  sal_max NUMBER;
+BEGIN
+
+ SELECT MAX(salario) INTO sal_max FROM empleados WHERE  departamento = dpt;
+
+  SELECT nombre INTO nombre_empleado
+  FROM empleados
+  WHERE salario = sal_max;
+
+    nombre_empleado := 'No existe';
+    
+  RETURN nombre_empleado;
+  
+EXCEPTION
+  WHEN NO_DATA_FOUND THEN
+    DBMS_OUTPUT.PUT_LINE('No se encontraron empleados en la tabla');
+  WHEN OTHERS THEN
+    DBMS_OUTPUT.PUT_LINE('Ocurrió un error al ejecutar la función');
+END;
+/
+
+DECLARE
+    nombre_empleado empleados.nombre%TYPE;
+    departamento    empleados.departamento%TYPE := 'JJ';
+BEGIN
+    nombre_empleado := obtener_empleado_salario_maximo_dept(departamento);
+    dbms_output.put_line(nombre_empleado);
+END;
+
+
+/
+
+
+CREATE OR REPLACE FUNCTION obtener_salario_medio RETURN NUMBER IS
+
+    v_total_salario   NUMBER := 0;
+    v_total_empleados NUMBER := 0;
+    v_salario_medio   NUMBER := 0;
+    CURSOR c_empleados IS
+    SELECT
+        salario
+    FROM
+        empleados;
+
+    v_salarios c_empleados%rowtype;
+BEGIN
+-- Abrir cursor
+    OPEN c_empleados;
+    -- Recorrer el la tabla del cursor
+    LOOP
+    -- Puntero del cursor que lo asignamos al salario
+        FETCH c_empleados INTO v_salarios;
+        -- Si no encuentra datos sale del bucle
+        EXIT WHEN c_empleados%notfound;
+        
+        -- Acumulamos salarios
+        v_total_salario := v_total_salario + v_salarios.salario;
+        -- Contamos empleados
+        v_total_empleados := v_total_empleados + 1;
+    END LOOP;
+
+-- Cerramos cursor
+    CLOSE c_empleados;
+    
+    -- Si hay empleados hacemos el calculo y lo sacamos
+    IF v_total_empleados <> 0 THEN
+        v_salario_medio := v_total_salario / v_total_empleados;
+        v_salario_medio := ROUND(v_salario_medio,2);
+        RETURN v_salario_medio;
+    END IF;
+
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        dbms_output.put_line('No hay datos para la selección de empleados' );
+    WHEN OTHERS THEN
+        raise_application_error(-20002, 'Error al calcular el salario medio.');
+END;
+
+/
+
+EXECUTE dbms_output.put_line('Salario medio de empledos = ' ||obtener_salario_medio);
+
+/
+
+
+-- TRIGGER
+/* trigger en la tabla "empleados" que se active después de cada inserción
+y que actualice automáticamente el salario de cada empleado según un porcentaje de aumento
+*/
+
+CREATE OR REPLACE TRIGGER trg_actualiza_salario
+BEFORE INSERT ON empleados
+FOR EACH ROW
+DECLARE
+  porcentaje_aumento NUMBER := 0.05; -- Aumento del 5%
+BEGIN
+  -- Actualiza el salario del empleado según el porcentaje de aumento
+  :NEW.salario := :NEW.salario * (1 + porcentaje_aumento);
+  
+END;
+/
+
+INSERT INTO EMPLEADOS (ID_EMP, NOMBRE, SALARIO, DEPARTAMENTO) VALUES ('112', 'Emilio', 1000, 'IT');
+
+select * from empleados WHERE ID_EMP = 112;

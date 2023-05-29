@@ -1,0 +1,283 @@
+
+SET SERVEROUTPUT ON;
+
+DROP TABLE detalle_pedidos;
+DROP TABLE pedidos;
+DROP TABLE productos;
+DROP TABLE clientes;
+
+-- Creación de la tabla "clientes"
+CREATE TABLE clientes (
+    id_cliente NUMBER(10) PRIMARY KEY,
+    nombre VARCHAR2(50),
+    direccion VARCHAR2(100),
+    telefono VARCHAR2(15)
+);
+
+-- Creación de la tabla "productos"
+CREATE TABLE productos (
+    id_producto NUMBER(10) PRIMARY KEY,
+    nombre VARCHAR2(50),
+    precio NUMBER(10, 2),
+    cantidad_stock NUMBER(10)
+);
+
+-- Creación de la tabla "pedidos"
+CREATE TABLE pedidos (
+    id_pedido NUMBER(10) PRIMARY KEY,
+    id_cliente NUMBER(10),
+    fecha_pedido DATE,
+    num_productos INT,
+    precio_total NUMBER(10, 2),
+    precio_iva NUMBER(10, 2),
+    CONSTRAINT fk_cliente_pedido FOREIGN KEY (id_cliente) REFERENCES clientes(id_cliente)
+);
+
+-- Creación de la tabla "detalle_pedidos"
+CREATE TABLE detalle_pedidos (
+id_linea_pedido NUMBER(10),
+id_pedido NUMBER(10),
+id_producto NUMBER(10),
+cantidad NUMBER(10),
+PRIMARY KEY (id_linea_pedido, id_pedido),
+CONSTRAINT fk_pedido_detalle FOREIGN KEY (id_pedido) REFERENCES pedidos(id_pedido),
+CONSTRAINT fk_producto_detalle FOREIGN KEY (id_producto) REFERENCES productos(id_producto)
+);
+
+-- Inserción de 5 registros en la tabla "clientes"
+INSERT INTO clientes (id_cliente, nombre, direccion, telefono)
+VALUES (1, 'Juan Pérez', 'Calle 123, Ciudad A', '1234567890');
+
+INSERT INTO clientes (id_cliente, nombre, direccion, telefono)
+VALUES (2, 'María Gómez', 'Avenida 456, Ciudad B', '9876543210');
+
+INSERT INTO clientes (id_cliente, nombre, direccion, telefono)
+VALUES (3, 'Pedro Rodríguez', 'Calle 789, Ciudad C', '4567890123');
+
+INSERT INTO clientes (id_cliente, nombre, direccion, telefono)
+VALUES (4, 'Laura Martínez', 'Avenida 012, Ciudad D', '7890123456');
+
+INSERT INTO clientes (id_cliente, nombre, direccion, telefono)
+VALUES (5, 'Carlos Sánchez', 'Calle 345, Ciudad E', '0123456789');
+
+
+-- Inserción de 5 registros en la tabla "productos"
+INSERT INTO productos (id_producto, nombre, precio, cantidad_stock)
+VALUES (1, 'Producto A', 100.50, 50);
+
+INSERT INTO productos (id_producto, nombre, precio, cantidad_stock)
+VALUES (2, 'Producto B', 75.25, 30);
+
+INSERT INTO productos (id_producto, nombre, precio, cantidad_stock)
+VALUES (3, 'Producto C', 50.10, 20);
+
+INSERT INTO productos (id_producto, nombre, precio, cantidad_stock)
+VALUES (4, 'Producto D', 200.00, 10);
+
+INSERT INTO productos (id_producto, nombre, precio, cantidad_stock)
+VALUES (5, 'Producto E', 150.75, 5);
+
+
+-- Inserción de 5 registros en la tabla "pedidos"
+INSERT INTO pedidos (id_pedido, id_cliente, fecha_pedido)
+VALUES (1, 1, TO_DATE('2023-04-13', 'YYYY-MM-DD'));
+
+INSERT INTO pedidos (id_pedido, id_cliente, fecha_pedido)
+VALUES (2, 2, TO_DATE('2023-04-12', 'YYYY-MM-DD'));
+
+INSERT INTO pedidos (id_pedido, id_cliente, fecha_pedido)
+VALUES (3, 3, TO_DATE('2023-04-11', 'YYYY-MM-DD'));
+
+INSERT INTO pedidos (id_pedido, id_cliente, fecha_pedido)
+VALUES (4, 4, TO_DATE('2023-04-10', 'YYYY-MM-DD'));
+
+INSERT INTO pedidos (id_pedido, id_cliente, fecha_pedido)
+VALUES (5, 5, TO_DATE('2023-04-09', 'YYYY-MM-DD'));
+
+
+
+-- Inserción de 5 registros en la tabla "detalle_pedidos"
+INSERT INTO detalle_pedidos (id_linea_pedido, id_pedido, id_producto, cantidad)
+VALUES (1, 1, 1, 2);
+
+INSERT INTO detalle_pedidos (id_linea_pedido, id_pedido, id_producto, cantidad)
+VALUES (2, 1, 3, 1);
+
+INSERT INTO detalle_pedidos (id_linea_pedido, id_pedido, id_producto, cantidad)
+VALUES (1, 2, 2, 3);
+
+INSERT INTO detalle_pedidos (id_linea_pedido, id_pedido, id_producto, cantidad)
+VALUES (2, 2, 4, 5);
+
+INSERT INTO detalle_pedidos (id_linea_pedido, id_pedido, id_producto, cantidad)
+VALUES (1, 3, 5, 2);
+
+INSERT INTO detalle_pedidos (id_linea_pedido, id_pedido, id_producto, cantidad)
+VALUES (1, 4, 3, 2);
+
+INSERT INTO detalle_pedidos (id_linea_pedido, id_pedido, id_producto, cantidad)
+VALUES (1, 5, 4, 2);
+
+-- PROCEDIMIENTOS --
+-- Procedimiento que muestra información de todos los pedidos de un cliente en particular
+CREATE OR REPLACE PROCEDURE mostrar_pedidos_cliente(p_id_cliente IN NUMBER)
+IS
+    CURSOR c_pedidos IS
+        SELECT id_pedido, fecha_pedido, precio_total, precio_iva
+        FROM pedidos
+        WHERE id_cliente = p_id_cliente;
+        
+    v_id_pedido pedidos.id_pedido%TYPE;
+    v_fecha_pedido pedidos.fecha_pedido%TYPE;
+    v_precio_total pedidos.precio_total%TYPE;
+    v_precio_iva pedidos.precio_iva%TYPE;
+BEGIN
+    OPEN c_pedidos;
+    FETCH c_pedidos INTO v_id_pedido, v_fecha_pedido, v_precio_total, v_precio_iva;
+    DBMS_OUTPUT.PUT_LINE('Pedidos del Cliente ' || p_id_cliente || ':');
+    WHILE c_pedidos%FOUND LOOP
+        DBMS_OUTPUT.PUT_LINE('ID Pedido: ' || v_id_pedido);
+        DBMS_OUTPUT.PUT_LINE('Fecha Pedido: ' || v_fecha_pedido);
+        DBMS_OUTPUT.PUT_LINE('Precio Total: ' || v_precio_total);
+        DBMS_OUTPUT.PUT_LINE('Precio IVA: ' || v_precio_iva);
+        DBMS_OUTPUT.PUT_LINE('---');
+        FETCH c_pedidos INTO v_id_pedido, v_fecha_pedido, v_precio_total, v_precio_iva;
+    END LOOP;
+    CLOSE c_pedidos;
+END;
+/
+
+EXECUTE mostrar_pedidos_cliente(1);
+
+/
+
+-- PROCEDIMIENTO Calcula el precio total de un pedido, dado su ID de pedido como parámetro:
+CREATE OR REPLACE PROCEDURE calcular_precio_total (
+    p_id_pedido    IN NUMBER,
+    p_precio_total OUT NUMBER,
+    p_num_total    OUT NUMBER
+) IS 
+    -- Variable para almacenar el precio total
+    lv_precio_total NUMBER := 0;
+    lv_num_total NUMBER := 0;
+BEGIN
+    -- Consulta para obtener el precio y la cantidad de cada producto en el pedido
+    SELECT
+        COUNT(d.id_producto), SUM(p.precio * d.cantidad)
+    INTO  lv_num_total, lv_precio_total
+    FROM
+             productos p
+        INNER JOIN 
+        detalle_pedidos d ON p.id_producto = d.id_producto
+    WHERE
+        d.id_pedido = p_id_pedido;
+    
+    -- Asignar el precio total al parámetro de salida
+    p_num_total := lv_num_total;
+    p_precio_total := lv_precio_total;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        -- Manejo de excepción si no se encuentra el pedido
+        RAISE_APPLICATION_ERROR(-20001, 'El pedido especificado no existe.');
+    WHEN OTHERS THEN
+        -- Manejo de otras excepciones
+        RAISE;
+END;
+
+/
+
+--  BLOQUE PARA PROBAR PROCEDIMIENTO
+DECLARE
+    -- Variable para almacenar el precio total
+    lv_precio_total NUMBER;
+    lv_num_total NUMBER;
+    lv_pedido NUMBER;
+BEGIN
+ lv_pedido := 1;
+ calcular_precio_total (lv_pedido, lv_precio_total, lv_num_total);
+ dbms_output.put_line(' Pedido: ' || lv_pedido || chr(10) ||  'Productos: ' || lv_num_total || chr(10) ||  'Precio: ' || lv_precio_total || ' €');
+END;
+
+/
+
+-- Función que obtiene la cantidad de productos en stock de un producto en particular
+CREATE OR REPLACE FUNCTION obtener_stock_producto(p_id_producto IN NUMBER)
+RETURN NUMBER
+IS
+    v_cantidad_stock productos.cantidad_stock%TYPE;
+BEGIN
+    SELECT cantidad_stock INTO v_cantidad_stock
+    FROM productos
+    WHERE id_producto = p_id_producto;
+    
+    RETURN v_cantidad_stock;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RETURN 0;
+END;
+
+/
+
+-- PROBAR FUNCION
+DECLARE
+lv_id_producto NUMBER;
+lv_nombre VARCHAR2(50);
+lv_stock NUMBER;
+BEGIN
+lv_id_producto := 1;
+SELECT nombre into lv_nombre from productos where id_producto = lv_id_producto;
+
+lv_stock := obtener_stock_producto(lv_id_producto);
+dbms_output.put_line('Producto: ' || lv_id_producto || chr(10) ||  'Nombre: ' || lv_nombre || chr(10) ||  'Stock: ' || lv_stock);
+
+END;
+
+/
+
+-- Creación de dos funciones devuelve el precio con iva de un pedido
+Create OR REPLACE
+    FUNCTION calcular_precio_iva (
+        p_id_pedido IN NUMBER,
+        p_iva       IN NUMBER
+    ) RETURN NUMBER IS
+        lv_precio_iva NUMBER;
+        lv_precio_total NUMBER;
+    BEGIN
+
+    SELECT
+       precio_total
+    INTO  lv_precio_total
+    FROM
+             pedidos
+    WHERE
+        id_pedido = p_id_pedido;
+
+        lv_precio_iva := lv_precio_total + ( lv_precio_total * p_iva);
+        RETURN lv_precio_iva;
+    END ;
+
+/
+
+
+
+
+-- Creación de dos triggers
+CREATE OR REPLACE TRIGGER validar_stock_antes_pedido
+BEFORE INSERT OR UPDATE ON detalle_pedidos
+FOR EACH ROW
+BEGIN
+DECLARE
+v_cantidad_stock NUMBER;
+BEGIN
+v_cantidad_stock := obtener_stock_producto(:NEW.id_producto);
+IF v_cantidad_stock < :NEW.cantidad THEN
+RAISE_APPLICATION_ERROR(-20001, 'Cantidad de stock insuficiente');
+END IF;
+END;
+END actualizar_stock_antes_pedido;
+/
+-- Creación de dos triggers
+-- Creación del trigger
+INSERT INTO detalle_pedidos (id_linea_pedido, id_pedido, id_producto, cantidad)
+VALUES (4, 5, 2, 20);
+

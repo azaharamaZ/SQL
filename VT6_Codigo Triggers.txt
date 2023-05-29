@@ -1,0 +1,276 @@
+SET SERVEROUTPUT ON  
+
+-- LA tabla que actualizaremos con mas frecuencia sera la de NOTAS
+-- Entonces vamos a añadir campos que nos idiquen que se hace en esa tabla añadiendo campos
+
+
+-- USUARIO, FECHA y HORA De inserción o actualizacón  de un registro en la tabla
+ALTER TABLE notas ADD username VARCHAR2(10);
+
+ALTER TABLE notas ADD fecha DATE;
+
+show user;
+
+UPDATE notas
+SET
+    username = user,
+    fecha = '01/01/2022';
+    
+
+-- BEFORE INSERT Trigger. crear un disparador ANTES DE INSERTAR en Oracle 
+-- Sirve para verificar lo que se va a insertar
+
+CREATE OR REPLACE TRIGGER notas_before_insert BEFORE
+    INSERT ON notas
+    FOR EACH ROW
+DECLARE
+    v_username VARCHAR2(10);
+BEGIN
+
+-- Comprobar que la nota esta entre 0 y 10 sino damos un error
+    IF :new.fin_nota NOT BETWEEN 0 AND 10 THEN
+        raise_application_error(-20000, 'No se permiten notas que no sean entre 0 y 10');
+    ELSE
+    
+   -- Se actualizara de forma interna el campo usuario y la fecha actual
+        SELECT
+            user
+        INTO v_username
+        FROM
+            dual;
+
+        :new.username := v_username;
+        :new.fecha := sysdate;
+    END IF;
+END;
+/
+
+-- BEFORE UPDATE Trigger. crear un disparador ANTES DE ACTUALIZAR en Oracle 
+CREATE OR REPLACE TRIGGER notas_before_update BEFORE
+    UPDATE ON notas
+    FOR EACH ROW
+DECLARE
+    v_username :;
+    v_media number;
+BEGIN
+
+-- Comprobar que la nota esta entre 0 y 10 sino damos un error
+    IF :new.fin_nota NOT BETWEEN 0 AND 10 THEN
+        raise_application_error(-20000, 'No se permiten notas que no sean entre 0 y 10');
+    ELSE
+   -- Se actualizara de forma interna el campo usuario y la fecha actual
+        SELECT
+            user
+        INTO v_username
+        FROM
+            dual;
+
+        :new.username := v_username;
+        :new.fecha := sysdate;
+    END IF;
+  
+   -- Mensasje aprobada la recuperación
+    IF
+        ( :old.fin_nota < 5 )
+        AND ( :new.fin_nota >= 5 )
+    THEN
+        dbms_output.put_line('Enhorabuena, ahora tienes aprobada la asignatura: '
+                             || :old.cod_asigna
+                             || ' con nota de: '
+                             || :new.fin_nota);
+
+    END IF;
+
+END;
+/
+
+
+
+-- BEFORE DELETE Trigger. crear un disparador ANTES DE BORRAR en Oracle 
+
+-- No permitir borrar notas de cursos pasados como el 2S2122
+CREATE OR REPLACE TRIGGER notas_before_delete BEFORE
+    DELETE ON notas
+    FOR EACH ROW
+DECLARE
+-- Seleccionamos los cursos que no son con año de inicio el año acutal
+    CURSOR ccursos IS
+    SELECT
+        *
+    FROM
+        cursos
+    WHERE
+        any_inici < (
+            SELECT
+                EXTRACT(YEAR FROM sysdate)
+            FROM
+                dual
+        );
+
+    v_ccursos  ccursos%rowtype;
+    v_username VARCHAR2(10);
+BEGIN
+    OPEN ccursos;
+    LOOP
+        FETCH ccursos INTO v_ccursos;
+        
+        -- Controlamos salir hasta que tenemos valores
+        EXIT WHEN ccursos%notfound;
+        IF :old.cod_curso = v_ccursos.cod_curso THEN
+            raise_application_error(-20000, 'No se permite borrar notas de cursos pasados');
+            EXIT;
+        END IF;
+
+    END LOOP;
+
+    CLOSE ccursos;
+    
+    -- Si no se hay error mostramos el el valor borrado
+    dbms_output.put_line('Se ha eliminado el registro del alumno: '
+                         || :old.cod_alumno
+                         || ' en asignatura de '
+                         || :old.cod_asigna
+                         || ' con nota de '
+                         || :old.fin_nota);
+
+END;
+/
+
+
+
+-- COMPROBAR TRIGGERS
+-- INSERT
+INSERT INTO notas (
+    cod_alumno,
+    cod_asigna,
+    cod_curso,
+    fin_nota
+) VALUES (
+    1,
+    'DAM_M02A',
+    '1S2223',
+    10
+);
+
+
+-- UPDATE
+
+UPDATE notas
+SET
+    fin_nota = 15
+WHERE
+        cod_alumno = 1
+    AND cod_asigna = 'DAM_M02B';
+
+UPDATE notas
+SET
+    fin_nota = 6
+WHERE
+        cod_alumno = 1
+    AND cod_asigna = 'DAM_M02B';
+    
+    
+-- DELETE
+-- Revisamos las notas del alumno 6
+SELECT
+    *
+FROM
+    notas
+WHERE
+    cod_alumno = 6;
+-- Intentar eliminar la nota del alumno 6 
+DELETE FROM notas
+WHERE
+        cod_alumno = 6
+    AND cod_asigna = 'DAM_M01';
+
+
+
+-- AFTER INSERT, UPTADE, DELETE significa que Oracle activará este activador después de que se ejecute alguna acción
+-- VAmos a ver que pasa cuando ya se hace la operación AFTER, lo hacemos sobre la tabla de notas para no perder lo que teniamos antes
+-- Para ello crearemos una tabla de historico 
+CREATE TABLE notas_historico (
+    fecha    DATE,
+    usuario  VARCHAR2(25),
+    evento   VARCHAR2(10),
+    alumno   NUMBER,
+    asgina   VARCHAR2(10),
+    curso    VARCHAR2(6),
+    old_nota NUMBER,
+    new_nota NUMBER
+);
+
+
+-- AFTER ACTION
+CREATE OR REPLACE TRIGGER notas_after_action AFTER
+    INSERT OR UPDATE OR DELETE ON notas
+    FOR EACH ROW
+DECLARE
+    v_fecha    DATE;
+    v_usuario  VARCHAR2(25);
+    v_evento   VARCHAR2(10);
+    v_alumno   NUMBER;
+    v_asgina   VARCHAR2(10);
+    v_curso    VARCHAR2(6);
+    v_old_nota NUMBER;
+    v_new_nota NUMBER;
+BEGIN
+    CASE
+        WHEN inserting THEN
+            dbms_output.put_line('Datos insertados en tabla notas');
+            v_evento := 'INS';
+            v_alumno := :new.cod_alumno;
+            v_asgina := :new.cod_asigna;
+            v_curso := :new.cod_curso;
+            v_new_nota := :new.fin_nota;
+        WHEN updating THEN
+            dbms_output.put_line('Datos modificados en tabla notas');
+            v_evento := 'UPD';
+            v_alumno := :old.cod_alumno;
+            v_asgina := :old.cod_asigna;
+            v_curso := :old.cod_curso;
+            v_old_nota := :old.fin_nota;
+            v_new_nota := :new.fin_nota;
+        WHEN deleting THEN
+            dbms_output.put_line('Datos borrados en tabla notas');
+            v_evento := 'DEL';
+            v_alumno := :old.cod_alumno;
+            v_asgina := :old.cod_asigna;
+            v_curso := :old.cod_curso;
+            v_old_nota := :old.fin_nota;
+    END CASE;
+
+    SELECT
+        user
+    INTO v_usuario
+    FROM
+        dual;
+
+    INSERT INTO notas_historico VALUES (
+        sysdate,
+        v_usuario,
+        v_evento,
+        v_alumno,
+        v_asgina,
+        v_curso,
+        v_old_nota,
+        v_new_nota
+    );
+
+END;
+/
+
+select * from notas_historico;
+
+SELECT
+    *
+FROM
+    notas
+WHERE
+    cod_alumno = 7
+    ;
+    
+DELETE FROM notas
+WHERE
+        cod_alumno = 6
+        AND cod_curso = '1S2223';  

@@ -1,0 +1,227 @@
+------------------ HERENCIA ---------------
+
+DROP TYPE tipo_vehiculo FORCE;
+-- Tipo Vehiculo como objeto de supertitpo
+CREATE OR REPLACE TYPE tipo_vehiculo AS OBJECT (
+    matricula    VARCHAR2(7),
+    marca    VARCHAR2(15),
+    modelo  VARCHAR2(15)
+) NOT FINAL NOT INSTANTIABLE; 
+-- Marcar un tipo de objeto como NO INSTANTIABLE cuando desee usar ese tipo solo como un supertipo
+
+/
+
+DROP TYPE tipo_coche FORCE;
+CREATE TYPE tipo_coche UNDER tipo_vehiculo (
+    num_puertas INT
+); 
+/
+
+CREATE TYPE tipo_moto UNDER tipo_vehiculo (
+    cilindrada INT
+) NOT FINAL; 
+
+/
+CREATE TYPE tipo_scuter UNDER tipo_moto (
+    color varchar(10)
+); 
+
+
+/
+DROP TYPE tipo_furgoneta FORCE;
+CREATE TYPE tipo_furgoneta UNDER tipo_vehiculo (
+    potencia INT
+);
+/
+
+
+DROP TYPE tipo_camion FORCE;
+CREATE TYPE tipo_camion UNDER tipo_vehiculo (
+    tonelaje INT
+);
+/
+
+
+DROP TABLE coches;
+CREATE TABLE coches OF tipo_coche 
+(PRIMARY KEY (matricula), CHECK(num_puertas < 9));
+
+DROP TABLE furgonetas;
+CREATE TABLE furgonetas OF tipo_furgoneta
+(PRIMARY KEY (matricula));
+
+DROP TABLE camiones;
+CREATE TABLE camiones OF tipo_camion
+(PRIMARY KEY (matricula));
+
+--Debido tipo_vehiculo es NO INSTANTIABLE , no se puede agregar una fila. 
+--Si intenta hacerlo, la base de datos devuelve un error
+
+INSERT INTO coches VALUES ( tipo_coche('1111AAA', 'Mazda', 'CX3', 5));
+INSERT INTO coches VALUES ( tipo_coche('2222BBB', 'Mazda', 'CX5', 5));
+INSERT INTO coches VALUES ( tipo_coche('3333CCC', 'Mazda', 'CX7', 5));
+
+INSERT INTO furgonetas VALUES ( tipo_furgoneta('4444AAA', 'Renault', 'TRAFIC', 120) );
+INSERT INTO furgonetas VALUES ( tipo_furgoneta('5555BBB', 'Renault', 'KANGOO', 130) );
+INSERT INTO furgonetas VALUES ( tipo_furgoneta('6666CCC', 'Renault', 'EXPRESS', 140) );
+
+INSERT INTO camiones VALUES ( tipo_camion('7777AAA', 'Ford', 'Serie F', 7000) );
+INSERT INTO camiones VALUES ( tipo_camion('8888BBB', 'Toyota', 'Tacoma', 8000) );
+INSERT INTO camiones VALUES ( tipo_camion('9999CCC', 'Ford', 'Cargo', 9000) );
+
+SELECT * FROM coches;
+SELECT * FROM furgonetas;
+SELECT * FROM camiones;
+
+
+-- REFERENCIA DE OBJETOS
+
+-- Ejemplo
+DROP TYPE t_autor FORCE;
+
+CREATE TYPE t_autor AS OBJECT (
+    id          INTEGER,
+    nombre      VARCHAR(100),
+    provincia   VARCHAR(50)
+);
+/
+
+DROP TYPE t_libro FORCE;
+
+CREATE TYPE t_libro AS OBJECT (
+    id         INTEGER,
+    nombre_lib VARCHAR(200),
+    escritor   REF t_autor
+);
+/
+
+
+DROP TABLE autores;
+/
+CREATE TABLE autores OF t_autor;
+/
+DROP TABLE libros;
+
+CREATE TABLE libros OF t_libro;
+
+-- Nos da la descripción de una tabla
+
+DESC libros;
+
+INSERT INTO autores VALUES (
+    1,
+    'Carlota Josefina Bérard',
+    'Madrid'
+);
+
+UPDATE autores set provincia = 'Barcelona' WHERE id = 1;
+
+INSERT INTO libros VALUES (
+    2,
+    'Libro 1',
+    (
+        SELECT
+            ref(a)
+        FROM
+            autores a
+        WHERE
+            a.id = 1
+    )
+);
+
+INSERT INTO libros VALUES (
+    2,
+    'Libro 2',
+    (
+        SELECT
+            ref(a)
+        FROM
+            autores a
+        WHERE
+            a.id = 1
+    )
+);
+
+SELECT
+    a.nombre_lib AS Libro,
+    a.escritor.nombre AS Autor,
+    a.escritor.provincia AS Provincia_Autor
+FROM
+    libros a
+WHERE
+    a.id = 1;
+    
+
+    
+--------------- ARRAY
+/
+-- Ejemplo
+DROP TYPE colec_telefono FORCE;
+CREATE OR REPLACE TYPE colec_telefono AS
+    VARRAY(5) OF INT;
+
+-- Campos Multivaluados
+    
+/
+DROP TABLE alumno;
+CREATE TABLE alumno (
+    id          NUMBER,
+    nombre      VARCHAR2(20),
+    telefonos   colec_telefono
+);
+/
+
+INSERT INTO alumno VALUES (
+    1,
+    'Carmen',
+    colec_telefono('955701212', '614785222')
+);
+
+/
+INSERT INTO alumno VALUES (
+    2,
+    'Antonio',
+    colec_telefono('957842563,', '645458523', '676767676', '676767897')
+);
+
+-- El Array solo es de 3 como maximo, si ponemos 4 da error
+/
+INSERT INTO alumno VALUES (
+    3,
+    'Emilio',
+    colec_telefono('978585612,', '66666626')
+);
+
+/
+
+set serveroutput On;
+
+CREATE OR REPLACE PROCEDURE mostrar_telefonos(alumno_id IN INT, contador IN INT) IS 
+  nombre VARCHAR2(20);
+  array_telefonos colec_telefono;
+  telefono int;
+BEGIN
+  SELECT a.nombre, a.telefonos
+  INTO nombre, array_telefonos
+  FROM alumno a
+  WHERE a.id = alumno_id;
+
+  DBMS_OUTPUT.PUT_LINE('Nombre del alumno: ' || nombre);
+
+IF contador > array_telefonos.count THEN
+    DBMS_OUTPUT.PUT_LINE('Telefono ' || contador || ': No existe');
+ELSE
+  FOR i IN 1..array_telefonos.count LOOP
+   IF contador = i THEN
+    telefono := array_telefonos(i);
+    DBMS_OUTPUT.PUT_LINE('Telefono ' || i || ': ' || telefono);
+    END IF;
+  END LOOP;
+END IF;
+
+END;
+/
+
+EXECUTE mostrar_telefonos(2,2);
+
+EXECUTE mostrar_telefonos(3,1);

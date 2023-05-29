@@ -1,0 +1,267 @@
+SET SERVEROUTPUT ON  
+
+-- CURSOR IMPLICITO
+-- Creamos un bloque donde solo se selecciona un registro
+
+DECLARE
+    lv_des_curso cursos.des_curso%TYPE;
+    lv_any_ini   INT;
+BEGIN
+-- Seleccionar la descripción de un curso
+    SELECT
+        des_curso
+    INTO lv_des_curso
+    FROM
+        cursos
+    WHERE
+            any_inici = 2022
+        AND num_semes = 1;
+
+-- Si se encuentran vlores sacamos el valor por pantalla
+    IF lv_des_curso IS NOT NULL THEN
+        dbms_output.put_line('Curso actual en Ilerna: ' || lv_des_curso);
+    END IF;
+
+EXCEPTION
+    WHEN no_data_found THEN
+        dbms_output.put_line('No hay datos para la selección');
+    WHEN too_many_rows THEN
+        dbms_output.put_line('Mas de una dato para la selección');
+END;
+/
+
+-- CURSOR con LOOP y FECTCH
+-- Bloque anónimo devuelve notas medias de asignaturas cuando son menos de 5 la media
+
+DECLARE
+-- Declaramos un cursor con una operacion de nota media por asignatura
+    CURSOR cnotas IS
+    SELECT
+        cod_asigna,
+        round(AVG(fin_nota),
+              2) nota_media
+    FROM
+        notas
+    GROUP BY
+        cod_asigna;
+
+-- Variable del tipo cursor
+    lv_cnotas cnotas%rowtype;
+BEGIN
+-- abre cursor
+    OPEN cnotas;
+-- recorremos el cursor
+    LOOP
+    -- Asignamos valor del cursor a la variable
+        FETCH cnotas INTO lv_cnotas;
+        -- Controlamos salir hasta que tenemos valores
+        EXIT WHEN cnotas%notfound;
+        -- Si la nota media es de suspenso mostramos la asignautra
+        IF lv_cnotas.nota_media < 5 THEN
+            dbms_output.put_line(lv_cnotas.cod_asigna
+                                 || ' --> '
+                                 || lv_cnotas.nota_media);
+        END IF;
+
+    END LOOP;
+-- Cerramos cursor
+    CLOSE cnotas;
+END;
+/
+
+-- WHILE + FETCH
+-- Bloque anónimo devuelve el precio de cada ciclo
+
+DECLARE
+-- Declarar cursor con todas las asignaturas
+    CURSOR casigna IS
+    SELECT
+        cod_asigna,
+        cod_ciclo,
+        precio
+    FROM
+        asignaturas;
+
+-- Declarar variables, tipo cursor y sumatorios de precios
+    lv_casigna    casigna%rowtype;
+    lv_precio_dam INT DEFAULT 0;
+    lv_precio_daw INT DEFAULT 0;
+    lv_precio_smx INT DEFAULT 0;
+BEGIN
+-- Abrir cursor
+    OPEN casigna;
+    -- Asignar primera linea a variable tipo cursor
+    FETCH casigna INTO lv_casigna;
+    WHILE casigna%found LOOP
+        CASE lv_casigna.cod_ciclo
+            WHEN 'DAM' THEN
+                lv_precio_dam := lv_precio_dam + lv_casigna.precio;
+            WHEN 'DAW' THEN
+                lv_precio_daw := lv_precio_daw + lv_casigna.precio;
+            WHEN 'SMX' THEN
+                lv_precio_smx := lv_precio_smx + lv_casigna.precio;
+        END CASE;
+
+        FETCH casigna INTO lv_casigna;
+    END LOOP;
+
+    dbms_output.put_line('Precio DAM: ' || lv_precio_dam);
+    dbms_output.put_line('Precio DAW: ' || lv_precio_daw);
+    dbms_output.put_line('Precio SMX: ' || lv_precio_smx);
+    CLOSE casigna;
+END;
+/
+-- USANDO FOR
+-- Bloque anónimo devuelve las horas totales de cada ciclo
+
+DECLARE
+    CURSOR casigna IS
+    SELECT
+        cod_asigna,
+        cod_ciclo,
+        num_horas
+    FROM
+        asignaturas;
+
+    lv_casigna   casigna%rowtype;
+    lv_horas_dam INT DEFAULT 0;
+    lv_horas_daw INT DEFAULT 0;
+    lv_horas_smx INT DEFAULT 0;
+BEGIN
+    FOR lv_casigna IN casigna LOOP
+        CASE lv_casigna.cod_ciclo
+            WHEN 'DAM' THEN
+                lv_horas_dam := lv_horas_dam + lv_casigna.num_horas;
+            WHEN 'DAW' THEN
+                lv_horas_daw := lv_horas_daw + lv_casigna.num_horas;
+            WHEN 'SMX' THEN
+                lv_horas_smx := lv_horas_smx + lv_casigna.num_horas;
+        END CASE;
+    END LOOP;
+
+    dbms_output.put_line('Horas DAM: ' || lv_horas_dam);
+    dbms_output.put_line('Horas DAW: ' || lv_horas_daw);
+    dbms_output.put_line('Horas SMX: ' || lv_horas_smx);
+END;
+
+-- CURSOR CON FUNCION
+
+/
+
+CREATE OR REPLACE FUNCTION precio_ciclo (
+    ciclo VARCHAR2
+) RETURN NUMBER AS
+
+    CURSOR casigna IS
+    SELECT
+        cod_asigna,
+        cod_ciclo,
+        precio
+    FROM
+        asignaturas
+    WHERE
+        cod_ciclo = ciclo;
+
+    lv_casigna casigna%rowtype;
+    lv_precio  INT DEFAULT 0;
+BEGIN
+    OPEN casigna;
+    FETCH casigna INTO lv_casigna;
+    WHILE casigna%found LOOP
+        lv_precio := lv_precio + lv_casigna.precio;
+        FETCH casigna INTO lv_casigna;
+    END LOOP;
+
+    CLOSE casigna;
+    RETURN lv_precio;
+END precio_ciclo;
+/
+
+--Escribir un bloque PL/SQL que haga uso de la funci?n anterior.
+DECLARE
+    lv_ciclo  VARCHAR2(3);
+    lv_precio INT;
+BEGIN
+    lv_ciclo := &ciclo;
+    lv_precio := precio_ciclo(lv_ciclo);
+    dbms_output.put_line('Precio de : '
+                         || lv_ciclo
+                         || ' es: '
+                         || lv_precio
+                         || ' Euros');
+
+END;
+/
+
+
+-- CURSORES DE ACTUALIZACIÓN
+
+-- Actualizar las provincia de los profesores 1 al 5
+
+DECLARE
+-- Declara el cursor para actualizar
+    CURSOR cprofe IS
+    SELECT
+        profesores.nom_profe,
+        profesores.cod_provi,
+        provincias.nom_provi
+    FROM
+        profesores
+    INNER JOIN provincias on profesores.cod_provi = provincias.cod_provi
+    WHERE
+        profesores.cod_profe IN ( 1, 2, 3, 4, 5 )
+    ORDER BY profesores.cod_profe
+    FOR UPDATE OF profesores.cod_provi;
+
+    lv_cprofe      cprofe%rowtype;
+    lv_nueva_provi profesores.cod_provi%TYPE;
+BEGIN
+    lv_nueva_provi := &nueva_provi;
+-- Mostrar los registros antes de la actualización
+    dbms_output.put_line('Valores antes de actualizarse');
+    OPEN cprofe;
+    FETCH cprofe INTO lv_cprofe;
+    WHILE cprofe%found LOOP
+        dbms_output.put_line(cprofe%rowcount
+                             || ') ANTES: '
+                             || lv_cprofe.nom_profe
+                             || ' - '
+                             || lv_cprofe.cod_provi
+                             || ' - '
+                             || lv_cprofe.nom_provi);
+-- Actualizar los registros
+
+        UPDATE profesores
+        SET
+            cod_provi = lv_nueva_provi
+        WHERE
+            CURRENT OF cprofe;
+
+        lv_nueva_provi := lv_nueva_provi + 1;
+        FETCH cprofe INTO lv_cprofe;
+    END LOOP;
+
+    CLOSE cprofe;
+ -- Ejecuta todas las acciones del UPDATE   
+    COMMIT;
+
+-- Mostrar los nuevos registros    
+    dbms_output.put_line('Valores despues de actualizarse');
+    OPEN cprofe;
+    FETCH cprofe INTO lv_cprofe;
+    WHILE cprofe%found LOOP
+        dbms_output.put_line(cprofe%rowcount
+                             || ') DESPUES: '
+                             || lv_cprofe.nom_profe
+                             || ' - '
+                             || lv_cprofe.cod_provi                             
+                             || ' - '
+                             || lv_cprofe.nom_provi);
+
+        FETCH cprofe INTO lv_cprofe;
+    END LOOP;
+
+    CLOSE cprofe;
+-- ROLLBACK;
+
+END;
