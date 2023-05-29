@@ -1,0 +1,207 @@
+SET SERVEROUTPUT ON;
+
+
+--Visualizar todos los procedimientos y funciones del usuario almacenados en la base de datos y su situación (valid o invalid).
+SELECT
+    object_name,
+    object_type,
+    status
+FROM
+    user_objects
+WHERE
+    object_type IN ( 'PROCEDURE', 'FUNCTION' );
+
+
+/*Bloque anonimo para ver algunos bucles anidados, en los cuales se muestra en pantalla sus iteraciones en forma de nivel.*/
+
+DECLARE
+    v_contador1  NUMBER := 1;
+    v_contador2  NUMBER := 1;
+    v_print1     NUMBER;
+    v_print2     NUMBER;
+    v_print3     NUMBER;
+BEGIN
+
+-- Bucle LOOP sale con un EXIT WHEN
+    LOOP
+      
+        v_print1 := v_contador1 * 100;
+        DBMS_OUTPUT.PUT_LINE('** L.Iteracion: '||v_contador1||' del Bucle_LOOP. Resultado: '||v_print1||'');
+        
+        -- Bucle WHILE sale cuando se cumple la condición
+        WHILE v_contador2 <= 2 LOOP
+            
+            v_print2 := v_contador2 + 10;
+            DBMS_OUTPUT.PUT_LINE('++ W.Iteracion: '||v_contador2||' del Bucle_WHILELOOP. Resultado: '||v_print2||'');
+            
+            -- Bucle FOR sale cuando se acaba de recorre
+            FOR i IN 1..4 LOOP
+                v_print3 := (v_print2 * 10) + i;
+                
+                IF v_print3 = 113 OR v_print3 = 123   THEN
+                -- Podemos salir del FOR usando el comando EXIT
+                    EXIT;
+                END IF;
+                DBMS_OUTPUT.PUT_LINE('-- F.Iteracion: '||I||' del Bucle_FORLOOP. Resultado: '||v_print3||'');
+            END LOOP Bucle_FORLOOP;
+            
+            v_contador2 := v_contador2 +1;
+
+        END LOOP Bucle_WHILELOOP;
+       
+       v_contador1 := v_contador1+1;
+               
+       EXIT WHEN v_contador1 > 1;
+       
+    END LOOP Bucle_LOOP;
+END;
+
+/
+
+/*Ejemplo procedimiento sencillo*/
+
+DROP PROCEDURE p_hola_nombre;
+CREATE OR REPLACE PROCEDURE p_hola_nombre (
+    nombre IN VARCHAR2,
+    edad IN NUMBER
+) AS
+    v_texto VARCHAR2(50);
+BEGIN
+    IF nombre IS NOT NULL THEN
+        v_texto := 'Hola, me llamo ';
+       dbms_output.put_line(v_texto || nombre || ', tengo ' || edad || ' años');
+    ELSE
+        dbms_output.put_line('No se ha proporcionado nombre');
+    END IF;
+END;
+
+/
+-- comprobamos el procedimeinto
+
+EXECUTE p_hola_nombre ('Emilio', 38);
+EXECUTE p_hola_nombre ('Maria', 32);
+EXECUTE p_hola_nombre ('', 32);
+EXECUTE p_hola_nombre (NULL, 32);
+/
+
+-- Procedimiento que reciba una cadena y la visualice al revés.
+
+CREATE OR REPLACE PROCEDURE p_cadena_reves (
+    cadena IN OUT VARCHAR2
+) AS
+    v_cad_reves VARCHAR2(80);
+BEGIN
+    IF ( cadena IS NOT NULL ) THEN
+        FOR i IN REVERSE 1..length(cadena) LOOP
+            v_cad_reves := v_cad_reves || substr(cadena, i, 1);
+        END LOOP;
+    END IF;
+
+    cadena := v_cad_reves;
+END p_cadena_reves;
+
+/
+
+-- Bloque para la comprobación
+DECLARE
+    v_texto VARCHAR2(20);
+BEGIN
+    v_texto := 'aloh';
+    DBMS_OUTPUT.PUT_LINE('El texto: ' || v_texto);
+    p_cadena_reves(v_texto);
+    DBMS_OUTPUT.PUT_LINE('Al reves es: ' || v_texto);
+END;
+
+/
+
+--FUNCIONES
+
+--Escribir una función que reciba una fecha y devuelva el año, en número, correspondiente a esa fecha.
+CREATE OR REPLACE FUNCTION f_anio_fecha (
+    fecha IN DATE
+) RETURN NUMBER AS
+    v_anio NUMBER(4);
+BEGIN
+    v_anio := TO_NUMBER ( to_char(fecha, 'YYYY') );
+    RETURN v_anio;
+END f_anio_fecha;
+/
+
+--Escribir un bloque PL/SQL que haga uso de la función anterior.
+DECLARE
+    v_numero_anio NUMBER(4);
+    v_fecha  DATE;
+BEGIN
+    v_fecha := '14/12/1984'; --SYSDATE;
+    v_numero_anio := f_anio_fecha( v_fecha);
+    dbms_output.put_line('AÑO: ' ||  v_numero_anio);
+END;
+
+/
+
+--Desarrollar una función que devuelva el número de años completos que hay entre dos fechas que se pasan como argumentos.
+CREATE OR REPLACE FUNCTION f_anios_dif (
+    fecha1 IN DATE,
+    fecha2 IN DATE
+) RETURN NUMBER AS
+    v_anios_dif NUMBER(6);
+BEGIN
+    v_anios_dif := abs(trunc(months_between(fecha2, fecha1) / 12));
+    RETURN v_anios_dif;
+END f_anios_dif;
+/
+
+--Escribir un bloque PL/SQL que haga uso de la función anterior.
+DECLARE
+    f1  DATE;
+    f2  DATE;
+    dif NUMBER(4);
+BEGIN
+    f1 := '14/12/1984';
+    f2 := sysdate;
+    dif := f_anios_dif(f1, f2);
+    dbms_output.put_line('Tengo : '
+                         || dif
+                         || ' años');
+END;
+
+/
+
+-- EJERCICIO1. PROCEDIMIENTO QUE AL PASARLE UN NUMERO NOS DE EL TRIPLE DE ESE MISMO NUMERO
+CREATE OR REPLACE PROCEDURE p_numero_triple (
+     numero IN OUT NUMBER)
+AS
+BEGIN
+	numero := numero * 3;
+END p_numero_triple; 
+/
+
+-- EJERCICIO2. FUNCION QUE AL PASARLE DOS NUMEROS NOS DEVUELVA SU MULTIPLICACIÓN
+
+CREATE OR REPLACE FUNCTION f_multiplicacion	(
+	 numero1 IN NUMBER,
+	 numero2 IN NUMBER)
+RETURN NUMBER
+IS
+	v_multiplica NUMBER;
+BEGIN
+	v_multiplica := numero1* numero2;
+	RETURN v_multiplica;
+END f_multiplicacion;
+/
+
+-- Bloque anonimo que nos devuelve el resultado de multiplicar dos numeros que hemos triplicado
+DECLARE
+    v_numero1    number(6) := 0;
+    v_numero2    number(6) := 0;
+    v_resultado   number(6);
+BEGIN
+    v_numero1 := &numero;
+    v_numero2 := &numero;
+    
+    p_numero_triple (v_numero1);
+    p_numero_triple (v_numero2);
+    
+    v_resultado := f_multiplicacion(v_numero1, v_numero2);
+	DBMS_OUTPUT.PUT_LINE('El resultado de : '|| v_numero1||' * '|| v_numero2||' = '|| v_resultado);
+END;
